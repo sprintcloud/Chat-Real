@@ -3,6 +3,7 @@ package cn.ckaiz.chat_real;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPubSub;
 
+import java.util.Objects;
 import java.util.Scanner;
 
 public class SimpleChatApp {
@@ -13,7 +14,7 @@ public class SimpleChatApp {
 
     public SimpleChatApp(String user) {
         // Crear conexiones separadas para suscripción y publicación
-        this.subJedis = new Jedis("localhost", 6379);
+        this.subJedis =  new Jedis("localhost", 6379);
         this.pubJedis = new Jedis("localhost", 6379);
         this.user = user;
     }
@@ -24,9 +25,15 @@ public class SimpleChatApp {
             subJedis.subscribe(new JedisPubSub() {
                 @Override
                 public void onMessage(String channel, String message) {
+                    String s = message.split(":")[0];
+                    if(Objects.equals(user, s)){
+                        return;
+                    }
+
                     // Mostrar los mensajes recibidos
-                    System.out.println("\n" + message);
-                    System.out.print(user + ": "); // Vuelve a imprimir el prompt
+                    System.out.println("\n" + message) ;
+                    System.out.println(user +":") ;
+
                 }
             }, CHANNEL);
         }).start();
