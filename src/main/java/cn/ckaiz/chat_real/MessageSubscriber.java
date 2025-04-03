@@ -17,11 +17,13 @@ public class MessageSubscriber implements Runnable {
     @Override
     public void run() {
         jedis.subscribe(new JedisPubSub() {
+
             @Override
             public void onMessage(String channel, String message) {
+
                 String msg_user = message.split(" ")[0].trim().replaceAll("^\\[|\\]", "");
                 if (!currentUser.equals(msg_user)) {
-                    System.out.println("\n【"+channel+" 新消息】：" + message);
+                    System.out.println("\n【"+channel+" ¡ Ha llegado un nuevo menasje !】：" + message);
                     historial.guardarMensaje(message, channel);
                 }
             }

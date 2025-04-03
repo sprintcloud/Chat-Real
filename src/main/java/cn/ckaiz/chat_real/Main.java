@@ -7,7 +7,7 @@ public class Main {
         try(RedisManager redisManager = new RedisManager("localhost",6379,null)){
             ChatService chatService = new ChatService();
             
-            System.out.print("请输入用户名: ");
+            System.out.print("Escribe tu nombre de usuario: ");
             String user = new Scanner(System.in).nextLine();
             
             chatService.startChat(user,redisManager);

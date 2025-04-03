@@ -18,8 +18,7 @@ public class ChatService {
             
             handleUserInput(pubJedis,user);
 
-            subJedis.close();
-            pubJedis.close();
+
         }
     }
     
@@ -34,7 +33,7 @@ public class ChatService {
                 
                 if("exit".equals(message)){
                     System.out.println("""
-                            退出聊天...""");
+                            Abandonando el chat...""");
                     break;
                 }
                 
