@@ -6,7 +6,7 @@ module cn.ckaiz.chat_real {
     requires com.dlsc.formsfx;
     requires org.kordamp.ikonli.javafx;
     requires redis.clients.jedis;
-
+    
     opens cn.ckaiz.chat_real to javafx.fxml;
     exports cn.ckaiz.chat_real;
 }
