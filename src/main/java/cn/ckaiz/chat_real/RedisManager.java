@@ -6,23 +6,29 @@ import redis.clients.jedis.JedisPoolConfig;
 
 import java.util.List;
 
+/**
+ * @author Xin Jie, Ibrahim
+ */
 public class RedisManager implements AutoCloseable {
-    private JedisPool jedisPool;
+    private final JedisPool jedisPool;
+    private final JedisPool subscriberPool;
+    
     
     public RedisManager(String host, int port, String password) {
-        this.jedisPool = new JedisPool(
-                new JedisPoolConfig(),
-                host,
-                port,
-                2000,
-                password
-        );
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxIdle(10);
+        poolConfig.setMaxTotal(50);
+        this.jedisPool = new JedisPool(poolConfig, host, port,2000,password);
+        this.subscriberPool = new JedisPool(poolConfig, host, port,2000,password);
     }
     
     public Jedis getResource() {
         return jedisPool.getResource();
     }
     
+    public Jedis getSubscriberResource() {
+        return subscriberPool.getResource();
+    }
     @Override
     public void close() {
         jedisPool.close();
