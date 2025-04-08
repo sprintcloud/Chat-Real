@@ -10,9 +10,17 @@ public class ChatService {
     public void startChat(String user, RedisManager redisManager){
         try(Jedis subJedis = redisManager.getResource();
             Jedis pubJedis = redisManager.getResource()){
-            
+            System.out.println("* HISTORIAL *");
             System.out.println(redisManager.obtenerHistorial(CHANNEL));
+            System.out.println("* * * * * * * * * + *");
+
             pubJedis.sadd("users_online", user);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try (Jedis jedis = redisManager.getResource()) {
+                    jedis.srem("users_online", user);
+                    System.out.println("\n[Sistema] Usuario eliminado de la lista online.");
+                }
+            }));
             MessageSubscriber subscriber = new MessageSubscriber(subJedis, user,redisManager);
             
             new Thread(subscriber).start();
