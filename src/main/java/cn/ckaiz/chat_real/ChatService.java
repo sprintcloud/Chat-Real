@@ -2,9 +2,7 @@ package cn.ckaiz.chat_real;
 
 import redis.clients.jedis.Jedis;
 
-import java.util.List;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -12,15 +10,84 @@ import java.util.stream.Collectors;
  */
 public class ChatService {
     private static final String CHANNEL = "chat_global";
+    private static final String ONLINE_USERS = "online_users";
     private final RedisManager redisManager;
+    private final String CurrentUser;
     
-    public ChatService(RedisManager redisManager) {
+    public ChatService(RedisManager redisManager, String user) {
         this.redisManager = redisManager;
+        this.CurrentUser = user;
+    }
+    
+    public void userOnline(String user) {
+        try(Jedis jedis = redisManager.getResource()){
+            jedis.sadd(ONLINE_USERS, user);
+        }
+    }
+    
+    public void userOffline(String user) {
+        try(Jedis jedis = redisManager.getResource()){
+            jedis.srem(ONLINE_USERS, user);
+        }
+    }
+    
+    public boolean isUserOnline(String user) {
+        try(Jedis jedis = redisManager.getResource()){
+            return jedis.sismember(ONLINE_USERS, user);
+        }
+    }
+    
+    public void sendMessage(String sender, String receiver, String message) {
+        String formattedMessage = String.format("[%s] %s: %s", new Date(), sender, message );
+        if(isUserOnline(receiver)){
+            publishMessage(String.format("%s: %s", sender,message));
+        }else{
+            redisManager.storeOfflineMessage(CurrentUser, receiver,CHANNEL,formattedMessage);
+        }
+    }
+    
+    public void syncOfflineMessages(String user) {
+        try(Jedis jedis = redisManager.getResource()){
+            String offlineKey = "Offline_Messages:"+user;
+            List<String> messages = jedis.lrange(offlineKey, 0, -1);
+            
+            if(!messages.isEmpty()){
+                System.out.println("【Mensajes no leídos】 Total " + messages.size()+" mensajes");
+                
+                List<String> sorted = redisManager.getAllMessagesSorted(CHANNEL);
+                
+                
+                    sorted.forEach(msgId -> {
+                        Map<String, String> messageData = jedis.hgetAll(msgId);
+                        
+                        String formattedMessage = messageData.entrySet().stream()
+                                .filter(entry -> !"timestamp".equals(entry.getKey()))
+                                .map(entry -> {
+                                    String key = entry.getKey();
+                                    return key + ": " + entry.getValue();
+                                })
+                                .collect(Collectors.joining(", "));
+                        
+                        System.out.println("【Mensaje Detalle】" + formattedMessage);
+                        
+                        String sortedKey = "All_Messages:"+CHANNEL+":sorted";
+                        jedis.zrem(sortedKey,msgId);
+                        jedis.del(msgId);
+                        
+                    });
+                
+                jedis.del(offlineKey);
+                
+            }
+        }
     }
     
     private void mostrarHistorial() {
+        List<String> history = redisManager.obtenerHistorial(CHANNEL);
+        if (history == null || history.isEmpty()) {
+            return;
+        }
         System.out.println("--- HISTORIAL ---");
-                List<String> history = redisManager.obtenerHistorial(CHANNEL);
         history.forEach(msg -> {
             String formattedMsg = formatHistoricalMessage(msg);
             System.out.println(formattedMsg);
@@ -43,34 +110,27 @@ public class ChatService {
         );
     }
     
-    public void startChat(String user){
-        try(Jedis jedis = redisManager.getResource()){
+    public void startChat(){
             mostrarHistorial();
-
-            jedis.sadd("users_online", user);
+            
+            userOnline(CurrentUser);
+            
+            syncOfflineMessages(CurrentUser);
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                jedis.srem("users_online", user);
+                userOffline(CurrentUser);
                 System.out.print("\n\033[31m[Sistema] Usuario eliminado de la lista online.\033[0m");
-                
             }));
-            MessageSubscriber subscriber = new MessageSubscriber(user,redisManager);
-            
+            MessageSubscriber subscriber = new MessageSubscriber(CurrentUser,redisManager);
             new Thread(subscriber).start();
-            
-            handleUserInput(jedis,user);
-        }finally {
-            try(Jedis jedis = redisManager.getResource()){
-                jedis.srem("users_online", user);
-            }
-        }
+            handleUserInput();
     }
     
-    private void handleUserInput(Jedis jedis, String user){
-        try(Scanner scanner = new Scanner(System.in)){
+    private void handleUserInput(){
+        try(Scanner scanner = new Scanner(System.in); Jedis jedis = redisManager.getResource()){
             System.out.println("\033[H\033[2J");
             System.out.flush();
             while(!Thread.currentThread().isInterrupted()){
-                System.out.print( user + ": ");
+                System.out.print( CurrentUser + ": ");
                 String message = scanner.nextLine().trim();
                 
                 if ("exit".equalsIgnoreCase(message)) {
@@ -86,24 +146,16 @@ public class ChatService {
                     continue;
                 }
                 
-                publishMessage(jedis, user, message);
+                sendMessage(CurrentUser, "XinJie".equals(CurrentUser) ? "Ibrahim" : "XinJie",message);
             }
         }catch (Exception e) {
             System.err.println("Entrada/salida error: " + e.getMessage());
-        } finally {
-            try(jedis){
-                jedis.srem("users_online", user);
-            }
         }
     }
     
-    private String formatMessage(String user, String message){
-        return String.format("[%s] %s", user, message);
-    }
-    
-    private void publishMessage(Jedis jedis, String user, String message) {
-        try {
-            jedis.publish(CHANNEL, formatMessage(user, message));
+    private void publishMessage(String message) {
+        try(Jedis jedis = redisManager.getResource()) {
+            jedis.publish(CHANNEL, message);
         } catch (Exception e) {
             System.err.println("Publicación fallida: " + e.getMessage());
         }

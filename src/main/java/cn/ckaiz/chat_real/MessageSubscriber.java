@@ -29,10 +29,10 @@ public class MessageSubscriber implements Runnable {
         return new JedisPubSub() {
          @Override
          public void onMessage(String channel, String message) {
-             String msgUser = message.split(" ")[0].trim().replaceAll("^\\[|]", "");
+             String msgUser = message.split(":")[0].trim();
              if (!currentUser.equals(msgUser)) {
-                 System.out.print("\n【"+channel+" llegado un nuevo menssaje】：" + message);
-                 System.out.print(msgUser+": ");
+                 System.out.print("\n【"+channel+" llegado un nuevo menssaje】：" + message+"\n");
+                 System.out.print(currentUser+": ");
                  redisManager.guardarMensaje(message, channel);
              }
          }
