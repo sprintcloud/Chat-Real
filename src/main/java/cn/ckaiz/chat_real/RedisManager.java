@@ -18,6 +18,8 @@ public class RedisManager implements AutoCloseable {
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxIdle(10);
         poolConfig.setMaxTotal(50);
+        poolConfig.setMinIdle(2);
+        poolConfig.setTestOnBorrow(true);
         this.jedisPool = new JedisPool(poolConfig, host, port,2000,password);
         this.subscriberPool = new JedisPool(poolConfig, host, port,2000,password);
     }
@@ -32,6 +34,7 @@ public class RedisManager implements AutoCloseable {
     @Override
     public void close() {
         jedisPool.close();
+        subscriberPool.close();
     }
     
     public List<String> obtenerHistorial(String channel) {

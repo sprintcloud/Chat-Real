@@ -2,6 +2,7 @@ package cn.ckaiz.chat_real;
 
 import redis.clients.jedis.Jedis;
 
+import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -11,21 +12,46 @@ import java.util.stream.Collectors;
  */
 public class ChatService {
     private static final String CHANNEL = "chat_global";
-
-    public void startChat(String user, RedisManager redisManager){
+    private final RedisManager redisManager;
+    
+    public ChatService(RedisManager redisManager) {
+        this.redisManager = redisManager;
+    }
+    
+    private void mostrarHistorial() {
+        System.out.println("--- HISTORIAL ---");
+                List<String> history = redisManager.obtenerHistorial(CHANNEL);
+        history.forEach(msg -> {
+            String formattedMsg = formatHistoricalMessage(msg);
+            System.out.println(formattedMsg);
+        });
+        System.out.println("----------------");
+    }
+    
+    private String formatHistoricalMessage(String rawMessage) {
+        String[] parts = rawMessage.replaceAll("^\\[|]", "").split(" ", 2);
+        if (parts.length < 2) {
+            return rawMessage;
+        }
+        
+        String user = parts[0];
+        String message = parts[1];
+        
+        return String.format("%s: %s",
+                user,
+                message
+        );
+    }
+    
+    public void startChat(String user){
         try(Jedis jedis = redisManager.getResource()){
-            System.out.println("* HISTORIAL *");
-            System.out.println(redisManager.obtenerHistorial(CHANNEL));
-            System.out.println("* * * * * * * * * + *");
-            
-            
+            mostrarHistorial();
 
             jedis.sadd("users_online", user);
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try (Jedis hookJedis  = redisManager.getResource()) {
-                    hookJedis.srem("users_online", user);
-                    System.out.println("\033[31m[Sistema] Usuario eliminado de la lista online.\033[0m");
-                }
+                jedis.srem("users_online", user);
+                System.out.print("\n\033[31m[Sistema] Usuario eliminado de la lista online.\033[0m");
+                
             }));
             MessageSubscriber subscriber = new MessageSubscriber(user,redisManager);
             
@@ -44,7 +70,7 @@ public class ChatService {
             System.out.println("\033[H\033[2J");
             System.out.flush();
             while(!Thread.currentThread().isInterrupted()){
-                System.out.print("\r" + user + ": ");
+                System.out.print( user + ": ");
                 String message = scanner.nextLine().trim();
                 
                 if ("exit".equalsIgnoreCase(message)) {

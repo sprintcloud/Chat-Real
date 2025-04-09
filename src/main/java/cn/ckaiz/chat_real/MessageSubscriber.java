@@ -31,7 +31,7 @@ public class MessageSubscriber implements Runnable {
          public void onMessage(String channel, String message) {
              String msgUser = message.split(" ")[0].trim().replaceAll("^\\[|]", "");
              if (!currentUser.equals(msgUser)) {
-                 System.out.println("\n【"+channel+" llegado un nuevo menssaje】：" + message+"\n");
+                 System.out.print("\n【"+channel+" llegado un nuevo menssaje】：" + message);
                  System.out.print(msgUser+": ");
                  redisManager.guardarMensaje(message, channel);
              }
