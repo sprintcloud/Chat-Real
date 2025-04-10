@@ -30,6 +30,12 @@ public class ChatService {
             jedis.srem(ONLINE_USERS, user);
         }
     }
+
+    public boolean isUserOnline(String user) {
+        try(Jedis jedis = redisManager.getResource()){
+            return jedis.sismember(ONLINE_USERS, user);
+        }
+    }
     
     public void syncOfflineMessages(String user) {
         try(Jedis jedis = redisManager.getResource()){
@@ -136,6 +142,10 @@ public class ChatService {
                     if(param.length > 2){
                         String receiver = param[1];
                         String message_pri = param[2];
+                        if(isUserOnline(receiver)){
+                            System.out.println("El usuario se encuentra en línea, no puedes dejar comentarios :)");
+                            continue;
+                        }
                         String formattedMessage = String.format("[%s] %s: %s", new Date(), CurrentUser, message_pri );
                         redisManager.storeOfflineMessage(CurrentUser, receiver,CHANNEL,formattedMessage);
                         continue;
