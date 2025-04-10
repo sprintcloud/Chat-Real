@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
  * @author Xin Jie, Ibrahim
  */
 public class ChatService {
-    private static final String CHANNEL = "chat_global";
+    private static final String CHANNEL = "m06";
     private static final String ONLINE_USERS = "online_users";
     private final RedisManager redisManager;
     private final String CurrentUser;
@@ -28,21 +28,6 @@ public class ChatService {
     public void userOffline(String user) {
         try(Jedis jedis = redisManager.getResource()){
             jedis.srem(ONLINE_USERS, user);
-        }
-    }
-    
-    public boolean isUserOnline(String user) {
-        try(Jedis jedis = redisManager.getResource()){
-            return jedis.sismember(ONLINE_USERS, user);
-        }
-    }
-    
-    public void sendMessage(String sender, String receiver, String message) {
-        String formattedMessage = String.format("[%s] %s: %s", new Date(), sender, message );
-        if(isUserOnline(receiver)){
-            publishMessage(String.format("%s: %s", sender,message));
-        }else{
-            redisManager.storeOfflineMessage(CurrentUser, receiver,CHANNEL,formattedMessage);
         }
     }
     
@@ -138,15 +123,26 @@ public class ChatService {
                 }
                 
                 if ("users".equals(message)) {
-                    Set<String> users = jedis.smembers("users_online");
+                    Set<String> users = jedis.smembers(ONLINE_USERS);
                     System.out.println("Usuarios en línea: " +
                             users.stream()
                                     .sorted()
                                     .collect(Collectors.joining(", ")));
                     continue;
                 }
-                
-                sendMessage(CurrentUser, "XinJie".equals(CurrentUser) ? "Ibrahim" : "XinJie",message);
+
+                if(message.startsWith("/comment")){
+                    String[] param = message.split(" ",3);
+                    if(param.length > 2){
+                        String receiver = param[1];
+                        String message_pri = param[2];
+                        String formattedMessage = String.format("[%s] %s: %s", new Date(), CurrentUser, message_pri );
+                        redisManager.storeOfflineMessage(CurrentUser, receiver,CHANNEL,formattedMessage);
+                        continue;
+                    }
+                }
+
+                publishMessage(String.format("%s: %s", CurrentUser,message));
             }
         }catch (Exception e) {
             System.err.println("Entrada/salida error: " + e.getMessage());

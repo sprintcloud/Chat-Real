@@ -19,7 +19,7 @@ public class MessageSubscriber implements Runnable {
     @Override
     public void run() {
         try(Jedis jedis = redisManager.getSubscriberResource()){
-            jedis.subscribe(createSubscriber(),"chat_global");
+            jedis.subscribe(createSubscriber(),"m06");
         } catch (JedisConnectionException e){
             System.err.println("Excepción de conexión de suscripción: " + e.getMessage());
         }
@@ -29,9 +29,21 @@ public class MessageSubscriber implements Runnable {
         return new JedisPubSub() {
          @Override
          public void onMessage(String channel, String message) {
+             String[] msg_array = message.split(" ",4);
+             if (msg_array[1].startsWith("/sendto") && msg_array.length > 3){
+                     String sender = msg_array[0];
+                     String received = msg_array[2];
+                     String message_pri = msg_array[3];
+                     if(currentUser.equals(received)) {
+                         System.out.print("\n【Ha llegado un nuevo mensaje privado】"+ sender+ " " + message_pri + "\n");
+                         System.out.print(currentUser + ": ");
+                     }
+                 return;
+             }
+
              String msgUser = message.split(":")[0].trim();
              if (!currentUser.equals(msgUser)) {
-                 System.out.print("\n【"+channel+" llegado un nuevo menssaje】：" + message+"\n");
+                 System.out.print("\n【"+channel+" ha llegado un nuevo menssaje】" + message+"\n");
                  System.out.print(currentUser+": ");
                  redisManager.guardarMensaje(message, channel);
              }
